@@ -24,22 +24,26 @@
           <br>
           <textarea class="form-control" rows="20" v-model="data.description" placeholder="Type product description here..."></textarea>
         </div>
-        <!-- <div class="product-item-title">
-          <label>Tags</label>
+        <div class="product-item-title">
+          <label>Categories</label>
           <br>
           <div class="form-control form-control-custom">
-            <div v-for='(tag, index) in tags' :key='index' class='tag-input__tag'>
-              <span @click='removeTag(index)'>x</span>
-              {{ tag }}
+            <div v-for='(cat, index) in categories' :key='index' class='tag-input__tag'>
+              <span @click='removeCat(index)'>x</span>
+              {{ cat }}
+              <span>,</span>
             </div>
-            <input type='text' placeholder="Type a tag" class='tag-input__text' @keydown.enter='addTag' @keydown.188='addTag' @keydown.delete='removeLastTag'/>
+            <input type='text' list="allCat" placeholder="Type a category" class='tag-input__text' @keydown.enter='addCat' @keydown.188='addCat' @keydown.delete='removeLastCat'/>
+            <datalist id="allCat">
+              <option v-for="category in allCat">{{category}}</option>
+            </datalist>
           </div>
-        </div> -->
-        <div class="product-item-title">
+        </div>
+        <!-- <div class="product-item-title">
           <label>Category</label>
           <br>
           <input type="text" class="form-control form-control-custom" v-model="data.category" placeholder="Separate category with ,">
-        </div>
+        </div> -->
         <div class="product-item-title">
           <label>Tags</label>
           <br>
@@ -444,9 +448,7 @@
   line-height: 30px;
   padding: 0 10px;
   border-radius: 5px;
-  color: white;
-  background-color: #f1661a; 
-  border: 1px solid #ff5b04;
+  
 }
 
 .tag-input__tag > span {
@@ -458,7 +460,6 @@
   border: none;
   color: #495057;
   outline: none;
-  line-height: 50px;
   background: none;
   height: 30px;
   line-height: 30px;
@@ -475,6 +476,7 @@ export default {
   mounted(){
     this.setTimePrepOptions()
     this.retrieve()
+    this.retrieveCategories()
   },
   data(){
     return {
@@ -508,7 +510,9 @@ export default {
         payload: null,
         payload_value: null
       },
-      prepTimeOptions: []
+      prepTimeOptions: [],
+      categories: [],
+      allCat: []
       // tags: []
     }
   },
@@ -537,22 +541,53 @@ export default {
     'confirmation': require('components/increment/generic/modal/Confirmation.vue')
   },
   methods: {
-    // addTag (event) {
-    //   event.preventDefault()
-    //   var val = event.target.value.trim()
-    //   if (val.length > 0) {
-    //     this.tags.push(val)
-    //     event.target.value = ''
-    //   }
-    // },
-    // removeTag (index) {
-    //   this.tags.splice(index, 1)
-    // },
-    // removeLastTag(event) {
-    //   if (event.target.value.length === 0) {
-    //     this.removeTag(this.tags.length - 1)
-    //   }
-    // },
+    addCat (event) {
+      event.preventDefault()
+      var val = event.target.value.trim()
+      if (val.length > 0) {
+        if(this.categories.includes(val) === false){
+          this.categories.push(val)
+        }else{
+          this.errorMessage = 'Category is already added.'
+        }
+        event.target.value = ''
+      }
+    },
+    removeCat (index) {
+      this.categories.splice(index, 1)
+    },
+    removeLastCat(event) {
+      if (event.target.value.length === 0) {
+        this.removeCat(this.categories.length - 1)
+      }
+    },
+    retrieveCategories(){
+      let parameter = {
+        condition: [{
+          value: this.user.subAccount.merchant.id,
+          column: 'merchant_id',
+          clause: '='
+        }],
+        inventory_type: this.common.ecommerce.inventoryType,
+        account_id: this.user.userID
+      }
+      $('#loading').css({display: 'block'})
+      this.APIRequest('products/retrieve_basic', parameter).then(response => {
+        $('#loading').css({display: 'none'})
+        if(response.data.length > 0){
+          for (var i = 0; i < response.data.length; i++) {
+            if(response.data[i].category !== null){
+              var responseCategory = response.data[i].category.split(', ')
+              responseCategory.forEach(element => {
+                if(this.allCat.includes(element) === false){
+                  this.allCat.push(element)
+                }
+              })
+            }
+          }
+        }
+      })
+    },
     setTimePrepOptions(){
       var totalMin = 0
       for(let count = 1; count <= 24; count++){
@@ -617,10 +652,11 @@ export default {
         $('#loading').css({display: 'none'})
         if(response.data.length > 0){
           this.data = response.data[0]
-          // this.tags = this.data.tags.split(', ')
+          this.categories = this.data.category.split(', ')
           // console.log('this ', this.data)
         }
       })
+      this.retrieveCategories()
     },
     deleteProduct(id){
       let parameter = {
@@ -654,10 +690,10 @@ export default {
       return ret
     },
     updateProduct(){
+      this.data.category = this.categories.join(', ')
       if(this.validate() === false){
         return
       }
-      // this.data.tags = this.tags.join(', ')
       this.data.preparation_time = parseInt(this.data.preparation_time)
       this.APIRequest('products/update', this.data).then(response => {
         if(this.common.ecommerce.productUnits !== null){
