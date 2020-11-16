@@ -707,7 +707,7 @@ export default {
         }
         this.successMessage = 'Updated Successfully'
         // ROUTER.push(AUTH.redirectRoute(this.user.type))
-        ROUTER.push('/products')
+        // ROUTER.push('/products')
 
       })
     },
